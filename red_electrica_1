@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Apr 15 17:13:30 2023
+
+@author: alvaroperaltaperalta
+"""
+# Importación de librerías
+import pandapower as pp
+import pandapower.plotting as pplt
+import matplotlib.pyplot as plt
+from geopy.distance import distance
+import warnings
+warnings.filterwarnings('ignore')
+
+# Coordenadas en orden desde la esquina de referencia (longitud, latitud)
+coords = [(-73.240675, -39.829773), (-73.240678, -39.829673), (-73.240539, -39.829358), (-73.240372, -39.828908),
+          (-73.240195, -39.828531), (-73.240027, -39.828080), (-73.239860, -39.827685), (-73.239703, -39.827326),
+          (-73.239691, -39.827080), (-73.239689, -39.826703), (-73.239665, -39.826324), (-73.239690, -39.825939),
+          (-73.239678, -39.825578), (-73.239678, -39.825277), (-73.239679, -39.825136), (-73.239677, -39.824931),
+          (-73.239691, -39.824622), (-73.239730, -39.824287), (-73.239760, -39.823980), (-73.239831, -39.823658),
+          (-73.239902, -39.823332), (-73.239960, -39.823025), (-73.240018, -39.822713), (-73.240079, -39.822384),
+          (-73.240129, -39.822138), (-73.240195, -39.821888), (-73.240302, -39.821639), (-73.240428, -39.821464),
+          (-73.240568, -39.821289), (-73.240714, -39.821125), (-73.240988, -39.829766), (-73.241276, -39.829685),
+          (-73.241878, -39.829523), (-73.242385, -39.829391), (-73.242905, -39.829298), (-73.243402, -39.829198),
+          (-73.243901, -39.829089), (-73.244163, -39.829029), (-73.244449, -39.828960), (-73.244890, -39.828856),
+          (-73.245447, -39.828724), (-73.245997, -39.828596), (-73.246602, -39.828418), (-73.247105, -39.828342),
+          (-73.247623, -39.828199), (-73.248164, -39.828098), (-73.248701, -39.827966), (-73.249378, -39.827819),
+          (-73.249793, -39.827720), (-73.250217, -39.827605), (-73.250635, -39.827639), (-73.250675, -39.827850),
+          (-73.250681, -39.828028), (-73.250695, -39.828248), (-73.250698, -39.828518), (-73.250685, -39.828571),
+          (-73.250701, -39.828657), (-73.250708, -39.828788), (-73.250733, -39.828937), (-73.250740, -39.829096)]
+
+# Crear una red eléctrica vacía
+net = pp.create_empty_network()
+
+# Parametros de las líneas de distribución:
+r_ohm_per_km = 0.284 # resistencia por unidad de longitud en ohmios por km
+x_ohm_per_km = 0.083 # reactancia por unidad de longitud en ohmios por km
+c_nf_per_km = 80 # capacitancia por unidad de longitud en nanofaradios por km
+max_i_ka = 0.23 # corriente máxima admisible en kiloamperios
+
+
+# Nodos postes tramo 1 (Aníbal Pinto)
+for i in range(30):
+    bus_coords = coords[i]
+    pp.create_bus(net, vn_kv = 13.8, 
+                      geodata=bus_coords, 
+                      name="Poste"+" "+ str(i))
+
+# Definimos una función para calcular la distancia entre dos nodos para el 
+# parametro "length_km"
+def calcular_distancia_nodos(nodo1, nodo2):
+    coord1 = coords[nodo1]
+    coord2 = coords[nodo2]
+    distancia = distance(coord1, coord2).km
+    return distancia
+    
+# Creación y conexión líneas de distribución tramo 1 (Anibal Pinto) #    
+for i in range(29):
+    from_bus = i
+    to_bus = i + 1
+    distancia = calcular_distancia_nodos(i, i+1)
+    print(f"Distancia del nodo {i} al nodo {i+1}: {distancia} km")
+    pp.create_line_from_parameters(net, from_bus, 
+                                    to_bus, length_km=distancia, 
+                                    r_ohm_per_km=r_ohm_per_km, 
+                                    x_ohm_per_km=x_ohm_per_km, 
+                                    c_nf_per_km=c_nf_per_km, 
+                                    max_i_ka=max_i_ka)
+    
+# Nodos postes tramo 2 (Coronel Stgo. Bueras)
+for i in range(30,60):
+    bus_coords = coords[i]
+    pp.create_bus(net, vn_kv=13.8, 
+                  geodata=bus_coords, 
+                  name="Poste" + " " + str(i))
+    
+# Creación y conexión líneas de distribución tramo 2 (Coronel Stgo. Bueras)
+
+# Línea que conecta el poste 0 con el segundo tramo
+line2 = pp.create_line_from_parameters(net, 0, 30, 
+                                        length_km=distancia, 
+                                        r_ohm_per_km=r_ohm_per_km, 
+                                        x_ohm_per_km=x_ohm_per_km, 
+                                        c_nf_per_km=c_nf_per_km, 
+                                        max_i_ka=max_i_ka)
+
+# Bucle que continua conectando los postes del tramo 2
+for i in range(30,59):
+    from_bus = i
+    to_bus = i + 1
+    distancia = calcular_distancia_nodos(i, i+1)
+    print(f"Distancia del nodo {i} al nodo {i+1}: {distancia} km")
+    pp.create_line_from_parameters(net, from_bus, 
+                                    to_bus, length_km=distancia, 
+                                    r_ohm_per_km=r_ohm_per_km, 
+                                    x_ohm_per_km=x_ohm_per_km, 
+                                    c_nf_per_km=c_nf_per_km, 
+                                    max_i_ka=max_i_ka)
+
+
+# --------------------------------------------------------------------
+# Creación y conexión de las cargas
+p_kwh_año = 23124  # Consumo promedio en kWh/año de cada poste
+p_kw = p_kwh_año/8766 # (kWh) Dividimos por la cantidad de horas en un año normal 
+                      # sin considerar años bisiestos
+
+for i in range(60):
+    pp.create_load(net, bus=i, p_mw=p_kw/1000) 
+
+# Adición de cargas para postes con mayor consumo (establecimientos)
+pe_kwh_año = [35640, 7573, 90585, 63855, 29700, 18000]
+p_kw = []
+
+for consumo in pe_kwh_año:
+    p_kw.append(consumo / 8766)
+  
+pp.create_load(net, bus=8, p_mw=p_kw[0]/1000)
+pp.create_load(net, bus=9, p_mw=p_kw[1]/1000)
+pp.create_load(net, bus=37, p_mw=p_kw[2]/1000)
+pp.create_load(net, bus=41, p_mw=p_kw[3]/1000)
+pp.create_load(net, bus=49, p_mw=p_kw[4]/1000)
+pp.create_load(net, bus=10, p_mw=p_kw[5]/1000)
+# pp.create_load(net, bus=20, p_mw=10)
+
+
+# ################ -----------------------------------------------######################
+# Agregar una red infinita e ideal en el nodo 0 (esquina de referencia)
+pp.create_ext_grid(net, bus=0, vm_pu=1, va_degree=0, name="Red Infinita")
+    
+# Calculo del flujo de potencia de la red
+pp.runpp(net)
+
+# # Gráfico que muestra la red en un enlace HTML
+pplt.plotly.simple_plotly(net)
+# pplt.plotly.vlevel_plotly(net)
+# pplt.plotly.pf_res_plotly(net)
+
+# # Muestra de resultados del flujo de carga 
+print(net.res_bus) 
+
+
+voltajes = net.res_bus.vm_pu.values  # obtener los voltajes resultantes
+# # loads = abs(net.res_bus.p_mw.values)
+# # print(voltajes) 
+# # for i in range
+
+# pplt.simple_plot(net)
+
+# print(voltajes)
+
+plt.plot(voltajes)
+plt.xlabel('Buses')
+plt.ylabel('Voltajes (PU)')
+plt.title('Resultados de mediciones de voltaje en cada poste de media tensión')
+plt.grid(True)
+plt.autoscale(axis="y")
+plt.show()
+
